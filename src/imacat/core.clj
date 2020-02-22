@@ -109,13 +109,17 @@
 (defonce game-dimensions 59)
 
 (defn add-terrain [x y]
-  (cond
-    (or (= x (dec game-dimensions))
-        (= x 0)
-        (= y (dec game-dimensions))
-        (= y 0))
-    [:fence]
-    :else [:grass]))
+  (let [max-x (dec game-dimensions)
+        max-y (dec game-dimensions)]
+    (cond
+      (or (= x max-x)
+          (= x 0)
+          (= y max-y)
+          (= y 0))
+      [:fence]
+      (and (= x 1) (= y 1))
+      [:cat]
+      :else [:grass])))
 
 ;; just a data structure to hold all the game context stuff,
 ;; probably needs to be broken out
@@ -128,22 +132,23 @@
 
 (defn new-game
   []
-  {:name "GAME!!!!!"
-   :world (world/gen-world game-dimensions gen-square-fn)})
+  {:name "I'm A Cat!"
+   :world (world/gen-world game-dimensions gen-square-fn)
+   :player-location [1 1]})
 
 (defn new-state
   "Create a brand new game state."
   ([]
    (let [state (agent {:game (atom (new-game))
-                       ;;                :console (new-console)
-                       ;;                :frame (new-frame)
                        :event-handler (atom nil)})]
      state)))
 
 ;;; Initial tile definitions
-;; TODO: colors, etc.
 (def tiles
-  {:fence {:tile \f
+  {:cat {:tile \@
+         :fg-color org.hexworks.zircon.api.color.ANSITileColor/BLACK
+         :bg-color org.hexworks.zircon.api.color.ANSITileColor/GREEN}
+   :fence {:tile \f
            :fg-color org.hexworks.zircon.api.color.ANSITileColor/WHITE
            :bg-color org.hexworks.zircon.api.color.ANSITileColor/GRAY}
    :grass {:tile \.
@@ -184,11 +189,36 @@
 ;; GAME CONTEXT STUFF
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; state -> game -> world
 (defonce state (new-state))
 
-(defn handle-keypress
+(defn get-game
+  "Returns the world data from state"
+  []
+  @(:game @state))
+
+(defn get-world
+  "Returns the world data from state"
+  ([]
+   (:world (get-game)))
+  ([game]
+   (:world game)))
+
+;; TODO: context-based keypress
+(defn can-move?
+  ([to-location from-location]
+   (let [{:keys [world player-location]
+          :as game} (get-game)
+         to-loc (to-location world)
+         from-loc (from-location world)]
+     (println (str "Can move from " from-loc " to " to-loc))))
+  ([to-location]
+   (let [{:keys [player-location]} (get-game)]
+     (println "player location " player-location)
+     (can-move? to-location player-location))))
+
+(defn handle-direction-keypress
   [keypress]
-  (println (str keypress))
   (cond
     (.equals keypress KeyCode/UP)
     (println "UP")
@@ -198,8 +228,18 @@
     (println "LEFT")
     (.equals keypress KeyCode/RIGHT)
     (println "RIGHT"))
-;  (print-game @(:game @state))
-  )
+  (can-move? [2 2]))
+  
+
+(defn handle-keypress
+  [keypress]
+  (println (str keypress))
+  (cond
+    (or (.equals keypress KeyCode/UP)
+        (.equals keypress KeyCode/DOWN)
+        (.equals keypress KeyCode/LEFT)
+        (.equals keypress KeyCode/RIGHT))
+    (handle-direction-keypress (keypress))))
 
 (defn get-tile-info
   [x y]
@@ -230,21 +270,3 @@
   (ui/main-test handle-keypress get-tile-info))
 ;  (doto (new-state)
 ;    start))
-
-;;;;;;;;;n;;;;;;;;;;;; graveyard ;;;;;;;;;;;;;;;;;;;;;;;;;
-(comment
-  ;;; copied launch code
-  (defn launch) 
-  "Launch the game with an initial game state. Can be called from REPL."
-  ([]
-   (launch (new-state)))
-  ([state]
-   (let [
-         ;^JFrame frame (:frame state)
-         jc (:console state)]
-;     (setup-input jc state) 
-;     (.add (.getContentPane frame) jc)
-;     (.pack frame)
-;     (.setVisible frame true)
-     (main-handler state) 
-     frame)))

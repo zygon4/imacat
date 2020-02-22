@@ -86,7 +86,7 @@
 (defn main-test
   [keypress-fn get-tile-info-fn]
   (let [config
-                                        ;(app-config (get-grid-size))
+        ;; Get grid size is a little wonky now, just use 80/60
         (app-config (size 80 60))
         tile-grid (SwingApplications/startTileGrid config)
         main-menu-screen (Screen/create tile-grid)
