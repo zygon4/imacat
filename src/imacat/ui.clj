@@ -77,31 +77,11 @@
                   fg-color org.hexworks.zircon.api.color.ANSITileColor/BLACK
                   character \~}
              :as tile-info} (get-tile-info-fn x y)
-            c (or character \~)
-            t (create-tile bg-color
-                           (or fg-color
-                               org.hexworks.zircon.api.color.ANSITileColor/BLACK)
-                           c)
+            t (create-tile bg-color fg-color character)
             pos (position x y)]
         (.draw tile-grid t pos)))
     (catch Exception e
       (.printStackTrace e))))
-
-(defn print-panel-1
-  [tile-grid get-tile-info-fn x-dim y-dim]
-  (doseq [x (range x-dim) y (range y-dim)]
-    (let [{:keys [bg-color fg-color character]
-           :or {bg-color org.hexworks.zircon.api.color.ANSITileColor/BLACK
-                fg-color org.hexworks.zircon.api.color.ANSITileColor/BLACK
-                character \s}} (get-tile-info-fn x y)
-          t (create-tile bg-color fg-color character)
-          pos (position x y)]
-      (do
-        (println (str pos ") bg " bg-color " fg " fg-color " character " character))
-        (println t)))))
-;        (.draw tile-grid
-;               (create-tile bg-color fg-color character)
-;               (position x y))))))
 
 (defn main-test
   [keypress-fn get-tile-info-fn]
@@ -120,11 +100,8 @@
                 (fn [event phase]
                   (do
                     (println (str "got " phase " " (.getCode event)))
-;                    (keypress-fn (.getCode event))
-                    (print-panel tile-grid get-tile-info-fn 80 60)))) 
-        ;; TBD: Print world here? How? Does the UI understand the game state or
-        ;; does the game understand UI concepts/API?
-        ]
+                    (keypress-fn (.getCode event))
+                    (print-panel tile-grid get-tile-info-fn 80 60))))]
     (.addComponent main-panel quit-button)
     (.processKeyboardEvents tile-grid KeyboardEventType/KEY_PRESSED key-fn)
     (.handleComponentEvents quit-button ComponentEventType/ACTIVATED quit-fn)

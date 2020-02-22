@@ -1,6 +1,7 @@
 (ns imacat.core
   (:require [imacat.world :as world]
-            [imacat.ui :as ui])
+            [imacat.ui :as ui]
+            [clojure.tools.logging :as log])
   (:import (org.hexworks.zircon.api.uievent KeyCode))
   (:gen-class))
 
@@ -84,17 +85,14 @@
 
 ;; This below is the original data shape, may hold water later, but it's also
 ;; a code document of some of the options
-(comment (def stats
+(comment (def stats)
   {:mode {:descriptions [:normal :charm :prowl]
           :meta-not-sure nil}
-   :stats {:descriptions [:strength :perception :acrobatics :coat]
-           }
-   :traits {:descriptions [:aggression :appetite]
-            }
-   :status {:descriptions [:spite :hunger]
-            }
-   }
-))
+   :stats {:descriptions [:strength :perception :acrobatics :coat]}
+           
+   :traits {:descriptions [:aggression :appetite]}
+            
+   :status {:descriptions [:spite :hunger]}})
 
 (def environment
   {:house
@@ -103,36 +101,7 @@
     :locations {:kitchen [{:id "k1" :description "This is a big kitchen room"}]
                 :living []
                 :hall []}
-    :items {:kitchen {:toy 10}}
-    }})
-
-
-;; This below is some copied code to perform parent/child nesting
-;; It may be used, may not.
-(defn error
-  [errStr]
-  (throw (str "ERROR: " errStr)))
-  
-(defn add-object 
-  "Adds an object definition to the library. Updates any indexes necessary"
-  ([lib obj]
-    (assoc lib :objects 
-           (assoc (:objects lib) 
-                  (or (:name obj) (error "Trying to add unnamed object to lib!: " obj)) 
-                  obj))))
-
-(defn proclaim 
-  "Adds an object definition to the library, deriving from an existing named object"
-  ([lib parent-name obj]
-    (let [objects (:objects lib)
-          parent (or
-                   (objects parent-name)
-                   (error "Parent not found: " parent-name))
-          obj (merge parent obj)
-          name (or (:name obj) (error "Trying to add unnamed object to lib!: " obj))
-          object (merge obj {:name name
-                             :parent-name parent-name})]
-      (add-object lib object))))
+    :items {:kitchen {:toy 10}}}})    
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Running game code
@@ -174,8 +143,12 @@
 ;;; Initial tile definitions
 ;; TODO: colors, etc.
 (def tiles
-  {:fence {:tile \f :color org.hexworks.zircon.api.color.ANSITileColor/GRAY}
-   :grass {:tile \. :color org.hexworks.zircon.api.color.ANSITileColor/BRIGHT_GREEN}})
+  {:fence {:tile \f
+           :fg-color org.hexworks.zircon.api.color.ANSITileColor/WHITE
+           :bg-color org.hexworks.zircon.api.color.ANSITileColor/GRAY}
+   :grass {:tile \.
+           :fg-color org.hexworks.zircon.api.color.ANSITileColor/BRIGHT_GREEN
+           :bg-color org.hexworks.zircon.api.color.ANSITileColor/GREEN}})
 
 (defn print-game
   [game]
@@ -225,7 +198,8 @@
     (println "LEFT")
     (.equals keypress KeyCode/RIGHT)
     (println "RIGHT"))
-  (print-game @(:game @state)))
+;  (print-game @(:game @state))
+  )
 
 (defn get-tile-info
   [x y]
@@ -233,18 +207,26 @@
         {:keys [stuff]} (-> (:world game)
                             (get-in [x y]))
         character (get-in tiles [(first stuff) :tile])
-        color (get-in tiles [(first stuff) :color])]
-;    (println (str x " " y " character) " character))
-    {:bg-color org.hexworks.zircon.api.color.ANSITileColor/WHITE
-     :fg-color color
-     :character character}))
-  
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  
-;; TODO: keypress event handler that updates the game
-;; TODO: decide where to re-render the game, do we wrap the key
-;;       press handler and have it call "print"?
+        bg-color (get-in tiles [(first stuff) :bg-color])
+        fg-color (get-in tiles [(first stuff) :fg-color])]
+    (as-> {} info
+      (when bg-color
+        (assoc info :bg-color bg-color))
+      (when fg-color
+        (assoc info :fg-color fg-color))
+      (when character
+        (assoc info :character character)))))
+
+(defn init-runtime
+  []
+  (Thread/setDefaultUncaughtExceptionHandler
+   (reify Thread$UncaughtExceptionHandler
+     (uncaughtException [_ thread ex]
+       (log/error ex "Uncaught exception on" (.getName thread))))))
+
 (defn -main
   []
+  (init-runtime)
   (ui/main-test handle-keypress get-tile-info))
 ;  (doto (new-state)
 ;    start))
@@ -252,7 +234,7 @@
 ;;;;;;;;;n;;;;;;;;;;;; graveyard ;;;;;;;;;;;;;;;;;;;;;;;;;
 (comment
   ;;; copied launch code
-  (defn launch 
+  (defn launch) 
   "Launch the game with an initial game state. Can be called from REPL."
   ([]
    (launch (new-state)))
@@ -265,4 +247,4 @@
 ;     (.pack frame)
 ;     (.setVisible frame true)
      (main-handler state) 
-     frame))))
+     frame)))
