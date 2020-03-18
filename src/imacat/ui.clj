@@ -63,28 +63,35 @@
 ;      (.fullScreen)
       (.build)))
 
-;; Calls back into the non-ui code to get tile info
-;; org.hexworks.zircon.api.color TileColor)
-
 ;; These defaults are a little weird, need to default the empty
 ;; key, and default if the key is nil
+(defn print-tile
+  [tile-grid get-tile-info-fn x y]
+  (try
+    (let [{:keys [bg-color fg-color character]
+           :or {bg-color org.hexworks.zircon.api.color.ANSITileColor/BLACK
+                fg-color org.hexworks.zircon.api.color.ANSITileColor/BLACK
+                character \~}
+           :as tile-info} (get-tile-info-fn x y)
+          t (create-tile bg-color fg-color character)
+          pos (position x y)]
+      (.draw tile-grid t pos))
+  (catch Exception e
+    (.printStackTrace e))))
+
 (defn print-panel
+  "This is pretty heavyweight printing of everything,
+  should not be called often."
   [tile-grid get-tile-info-fn x-dim y-dim]
   (try
     (doseq [x (range x-dim) y (range y-dim)]
-      (let [{:keys [bg-color fg-color character]
-             :or {bg-color org.hexworks.zircon.api.color.ANSITileColor/BLACK
-                  fg-color org.hexworks.zircon.api.color.ANSITileColor/BLACK
-                  character \~}
-             :as tile-info} (get-tile-info-fn x y)
-            t (create-tile bg-color fg-color character)
-            pos (position x y)]
-        (.draw tile-grid t pos)))
+      (print-tile tile-grid get-tile-info-fn x y))
     (catch Exception e
       (.printStackTrace e))))
 
 (defn main-test
   [keypress-fn get-tile-info-fn]
+  "Assumes that keypress-fn returns a seq of tile coordinates (or nil) to refresh via get-tile-info-fn."
   (let [config
         ;; Get grid size is a little wonky now, just use 80/60
         (app-config (size 80 60))
@@ -100,8 +107,9 @@
                 (fn [event phase]
                   (do
                     (println (str "got " phase " " (.getCode event)))
-                    (keypress-fn (.getCode event))
-                    (print-panel tile-grid get-tile-info-fn 80 60))))]
+                    (when-let [tile-updates (keypress-fn (.getCode event))]
+                      (doseq [[x y] tile-updates]
+                        (print-tile tile-grid get-tile-info-fn x y))))))]
     (.addComponent main-panel quit-button)
     (.processKeyboardEvents tile-grid KeyboardEventType/KEY_PRESSED key-fn)
     (.handleComponentEvents quit-button ComponentEventType/ACTIVATED quit-fn)

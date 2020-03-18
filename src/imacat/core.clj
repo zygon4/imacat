@@ -123,6 +123,7 @@
     (.printStackTrace e)))))
 
 (defn handle-direction-keypress
+  "Returns a seq of modified locations"
   [keypress]
   (let [location-change
         (cond
@@ -144,7 +145,7 @@
       (swap! game update-in [:world from-location]
              (fn [loc] (into [] (remove is-cat? loc))))
       (swap! game assoc :player-location to-location)
-      nil)))
+      (seq [from-location to-location]))))
 
 ;; TODO: context aware key-press, this is only
 ;; assuming movement, no menus, etc.
@@ -156,6 +157,7 @@
         (.equals keypress KeyCode/DOWN)
         (.equals keypress KeyCode/LEFT)
         (.equals keypress KeyCode/RIGHT))
+    ;; This will return the modified tiles, or nil if none
     (handle-direction-keypress keypress)))
 
 (defn get-tile-info
